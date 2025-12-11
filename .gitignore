@@ -182,3 +182,4 @@ cython_debug/
 /data/raw/clips/shots
 /data/raw/matches
 /data/raw/situations
+yolov8x.pt
