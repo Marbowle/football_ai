@@ -3,7 +3,8 @@ import cv2
 import supervision as sv
 from src.inference import detect_objects
 from src.tracker import create_tracker
-print(dir(sv))
+from src.team_assigner import TeamAssigner
+
 # Configuration for arguments parser
 parser = argparse.ArgumentParser("System analizy piłkarskiej")
 parser.add_argument('--source_video_path', type=str, required=True, help='source video path')
@@ -17,6 +18,8 @@ nr_of_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
 tracker = create_tracker()
 
+team_assigner = TeamAssigner()
+
 bounding_box_annotator = sv.BoxAnnotator()
 label_annotator = sv.LabelAnnotator()
 
@@ -26,12 +29,18 @@ for i in range(nr_of_frames):
         results = detect_objects(frame)
         detections = sv.Detections.from_ultralytics(results)
         detections = tracker.update_with_detections(detections)
-        # 1. Create labels
-        labels = [
-            f"#{tracker_id}"
-            for tracker_id
-            in detections.tracker_id
-        ]
+        # Methods to assign right color in first frame
+
+        if i == 0:
+            team_assigner.assign_team_color(frame, detections)
+
+        # Create labels for correct assign team
+        labels = []
+
+        for bbox, _, _, _, tracker_id, _ in detections:
+
+            team_id = team_assigner.get_player_team(frame, bbox, tracker_id)
+            labels.append(f"ID: {tracker_id} T: {team_id}")
 
         # 2. Drawing frames and labels
         annotated_frame = bounding_box_annotator.annotate(
