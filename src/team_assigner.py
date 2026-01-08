@@ -13,10 +13,13 @@ class TeamAssigner(object):
         image = frame[int(bbox[1]):int(bbox[3]), int(bbox[0]):int(bbox[2])]
 
         h = image.shape[0]
+        w = image.shape[1]
         top= int(0.25 * h)
         bottom= int(0.75 * h)
+        left = int(0.25 * w)
+        right = int(0.75 * w)
 
-        jersey_crop = image[top:bottom, :]
+        jersey_crop = image[top:bottom, left:right]
 
         mean_color = np.mean(jersey_crop, axis=(0,1))
 

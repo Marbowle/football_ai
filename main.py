@@ -28,6 +28,8 @@ for i in range(nr_of_frames):
     if ret:
         results = detect_objects(frame)
         detections = sv.Detections.from_ultralytics(results)
+        detections = detections[detections.class_id == 0]
+        detections = detections[detections.xyxy[:, 3] > 100]
         detections = tracker.update_with_detections(detections)
         # Methods to assign right color in first frame
 
