@@ -36,18 +36,23 @@ for i in range(nr_of_frames):
         results = detect_objects(frame)
         detections = sv.Detections.from_ultralytics(results)
         detections = tracker.update_with_detections(detections)
-        # Methods to assign right color in first frame
 
+        # Methods to assign right color in first frame
         if i == 0:
-            team_assigner.assign_team_color(frame, detections)
+            players_only = detections[detections.class_id == 2]
+            team_assigner.assign_team_color(frame, players_only)
 
         # Create labels for correct assign team
         labels = []
 
-        for bbox, _, _, _, tracker_id, _ in detections:
-
-            team_id = team_assigner.get_player_team(frame, bbox, tracker_id)
-            labels.append(f"ID: {tracker_id} T: {team_id}")
+        for bbox, _, _, class_id, tracker_id, _ in detections:
+            if class_id != 3 and class_id != 0:
+                team_id = team_assigner.get_player_team(frame, bbox, tracker_id)
+                labels.append(f"ID: {tracker_id} T: {team_id}")
+            elif class_id == 3:
+                labels.append(f"ID: {tracker_id} REF")
+            else:
+                labels.append(f"ID: {tracker_id}, sports ball")
 
         # 2. Drawing frames and labels
         annotated_frame = bounding_box_annotator.annotate(
