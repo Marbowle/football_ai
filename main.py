@@ -15,6 +15,13 @@ path = args.source_video_path
 cap = cv2.VideoCapture(path)
 
 nr_of_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fps = cap.get(cv2.CAP_PROP_FPS)
+output_path = "result.mp4"
+
+#Assign vidoe to watch
+video_writer = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
 tracker = create_tracker()
 
@@ -28,8 +35,6 @@ for i in range(nr_of_frames):
     if ret:
         results = detect_objects(frame)
         detections = sv.Detections.from_ultralytics(results)
-        detections = detections[detections.class_id == 0]
-        detections = detections[detections.xyxy[:, 3] > 100]
         detections = tracker.update_with_detections(detections)
         # Methods to assign right color in first frame
 
@@ -54,8 +59,6 @@ for i in range(nr_of_frames):
             detections=detections,
             labels=labels
         )
-        cv2.imshow("frame", annotated_frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        video_writer.write(annotated_frame)
+
 cap.release()
-cv2.destroyAllWindows()
