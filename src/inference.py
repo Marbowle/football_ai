@@ -1,6 +1,7 @@
 from ultralytics import YOLO
 
-model = YOLO('yolov8x.pt')
+#Trainig model based on football dataset
+model = YOLO('models/best.pt')
 
 def detect_objects(frame):
 

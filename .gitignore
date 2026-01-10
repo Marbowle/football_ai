@@ -184,6 +184,12 @@ cython_debug/
 /data/raw/situations
 yolov8x.pt
 training/football_training_yolo_v5.ipynb
+training/football_training_yolo_v5.ipynb
+training/football_training_yolo_v5.ipynb
 /training/football-players-detection-1
 models/best.pt
 models/last.pt
+result.mp4
+result.mp4
+src/pobierz.py
+result.mp4

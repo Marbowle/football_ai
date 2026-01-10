@@ -4,3 +4,5 @@ argparse
 supervision
 numpy
 scikit-learn
+roboflow
+pandas
