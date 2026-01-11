@@ -3,9 +3,9 @@ import pandas as pd
 import numpy as np
 import cv2
 import supervision as sv
-from src.inference import detect_objects
-from src.tracker import create_tracker
-from src.team_assigner import TeamAssigner
+from src import detect_objects
+from src.soccer_analysis.trackers.tracker import Tracker
+from src import TeamAssigner
 
 # Configuration for arguments parser
 parser = argparse.ArgumentParser("System analizy piłkarskiej")
@@ -18,7 +18,7 @@ cap = cv2.VideoCapture(path)
 
 nr_of_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-tracker = create_tracker()
+tracker = Tracker()
 
 team_assigner = TeamAssigner()
 
@@ -74,7 +74,7 @@ cap = cv2.VideoCapture(path)
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = cap.get(cv2.CAP_PROP_FPS)
-output_path = "result.mp4"
+output_path = "../../result.mp4"
 
 #Assign video to watch
 video_writer = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
