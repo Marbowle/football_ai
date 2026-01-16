@@ -17,14 +17,14 @@ class GameAnalyzer:
         self.player_ball_assigner = PlayerBallAssigner()
 
         self.ellipse_annotator = sv.EllipseAnnotator(
-            color = sv.Color.WHITE,
+            color = sv.Color.RED,
             thickness=2
         )
 
         self.triangle_annotator = sv.TriangleAnnotator(
-            color=sv.Color.WHITE,
-            base= 10,
-            height = 15
+            color=sv.Color.YELLOW,
+            base= 20,
+            height = 20
         )
 
         self.label_annotator = sv.LabelAnnotator(
@@ -106,10 +106,11 @@ class GameAnalyzer:
 
                 # Create labels for correct assign team
                 labels = []
+                annotated_frame = frame.copy()
 
                 for bbox, _, _, class_id, tracker_id, _ in detections:
                     if class_id == 0:
-                        pass
+                        continue
                     elif class_id == 1:
                         labels.append("GK")
                     elif class_id == 3:
@@ -117,6 +118,22 @@ class GameAnalyzer:
                     else:
                         team_id = self.team_assigner.get_player_team(frame, bbox, tracker_id)
                         labels.append(f"ID: {tracker_id} T: {team_id}")
+                        team_color = self.team_assigner.team_colors[team_id]
+                        self.ellipse_annotator.color = sv.Color(
+                            r=int(team_color[0]),
+                            g=int(team_color[1]),
+                            b=int(team_color[2])
+                        )
+                        single_player_detection = sv.Detections(
+                            xyxy=np.array([bbox]),
+                            class_id=np.array([class_id]),
+                            tracker_id=np.array([tracker_id])
+                        )
+
+                        annotated_frame = self.ellipse_annotator.annotate(
+                            scene=annotated_frame,
+                            detections=single_player_detection
+                        )
                         if tracker_id == assigned_player_id:
                             if tracker_id == assigned_player_id:
                                 team_color = self.team_assigner.team_colors[team_id]
@@ -131,13 +148,11 @@ class GameAnalyzer:
                 ball_detections_for_drawing = sv.Detections(xyxy=np.array([ball_bbox]), class_id=class_id)
 
                 # 2. Drawing frames and labels
-                annotated_frame = bounding_box_annotator.annotate(
-                    scene=frame.copy(),
-                    detections=detections
-                )
+
+
                 annotated_frame = label_annotator.annotate(
                     scene=annotated_frame,
-                    detections=detections,
+                    detections=detections[detections.class_id != 0],
                     labels=labels
                 )
                 annotated_frame = self.triangle_annotator.annotate(
