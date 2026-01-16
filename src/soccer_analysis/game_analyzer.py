@@ -5,6 +5,7 @@ import supervision as sv
 from src.soccer_analysis.inference import Detector
 from src.soccer_analysis.trackers import Tracker
 from src.soccer_analysis.team_assigner import TeamAssigner
+from src.soccer_analysis.player_ball_assigner import PlayerBallAssigner
 
 class GameAnalyzer:
     def __init__(self, source_video_path, model_path):
@@ -13,6 +14,23 @@ class GameAnalyzer:
         self.detector = Detector(model_path)
         self.tracker = Tracker()
         self.team_assigner = TeamAssigner()
+        self.player_ball_assigner = PlayerBallAssigner()
+
+        self.ellipse_annotator = sv.EllipseAnnotator(
+            color = sv.Color.WHITE,
+            thickness=2
+        )
+
+        self.triangle_annotator = sv.TriangleAnnotator(
+            color=sv.Color.WHITE,
+            base= 10,
+            height = 15
+        )
+
+        self.label_annotator = sv.LabelAnnotator(
+            text_color=sv.Color.BLACK,
+            text_position=sv.Position.BOTTOM_CENTER
+        )
 
     def extract_ball_positions(self):
         cap = cv2.VideoCapture(self.source_video_path)
@@ -66,6 +84,20 @@ class GameAnalyzer:
                 detections = sv.Detections.from_ultralytics(results)
                 detections = self.tracker.update_with_detections(detections)
 
+                #Calculate ball control
+                ball_bbox = ball_detections[i]
+
+
+                #List of players
+                players_bboxes_dict = {}
+                for bbox, _, _, class_id, tracker_id, _ in detections:
+                    if class_id == 2:
+                        players_bboxes_dict[tracker_id] = bbox
+
+                assigned_player_id = -1
+                if ball_bbox is not None:
+                    assigned_player_id = self.player_ball_assigner.assign_ball_to_player(players_bboxes_dict, ball_bbox)
+
 
                 # Methods to assign right color in first frame
                 if i == 0:
@@ -76,15 +108,27 @@ class GameAnalyzer:
                 labels = []
 
                 for bbox, _, _, class_id, tracker_id, _ in detections:
-                    if class_id == 1:
-                        labels.append(f"ID: {tracker_id} GK")
+                    if class_id == 0:
+                        pass
+                    elif class_id == 1:
+                        labels.append("GK")
                     elif class_id == 3:
-                        labels.append(f"ID: {tracker_id} REF")
-                    elif class_id == 0:
-                        labels.append(f"ID: {tracker_id}, sports ball")
+                        labels.append("REF")
                     else:
                         team_id = self.team_assigner.get_player_team(frame, bbox, tracker_id)
                         labels.append(f"ID: {tracker_id} T: {team_id}")
+                        if tracker_id == assigned_player_id:
+                            if tracker_id == assigned_player_id:
+                                team_color = self.team_assigner.team_colors[team_id]
+                                self.triangle_annotator.color = sv.Color(
+                                    r=int(team_color[0]),
+                                    g=int(team_color[1]),
+                                    b=int(team_color[2])
+                                )
+
+
+                class_id = np.array([0])
+                ball_detections_for_drawing = sv.Detections(xyxy=np.array([ball_bbox]), class_id=class_id)
 
                 # 2. Drawing frames and labels
                 annotated_frame = bounding_box_annotator.annotate(
@@ -96,18 +140,10 @@ class GameAnalyzer:
                     detections=detections,
                     labels=labels
                 )
-
-                if i < len(ball_detections):
-                    if ball_detections[i] is not None:
-                        bbox = ball_detections[i]
-                        x1, y1, x2, y2 = bbox
-
-                        # Obliczamy środek
-                        center_x = int((x1 + x2) / 2)
-                        center_y = int((y1 + y2) / 2)
-
-                        # drawing function
-                        cv2.circle(annotated_frame, (int(center_x), int(center_y)), 5, (255, 255, 255), -1)
+                annotated_frame = self.triangle_annotator.annotate(
+                    scene=annotated_frame,
+                    detections=ball_detections_for_drawing
+                )
 
                 video_writer.write(annotated_frame)
             else:
