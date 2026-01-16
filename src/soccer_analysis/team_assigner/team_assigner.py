@@ -14,16 +14,18 @@ class TeamAssigner(object):
 
         h = image.shape[0]
         w = image.shape[1]
-        top= int(0.25 * h)
-        bottom= int(0.75 * h)
-        left = int(0.25 * w)
-        right = int(0.75 * w)
+        top = int(h * 0.35)
+        bottom = int(h * 0.65)
+        left = int(w* 0.4)
+        right = int(w * 0.6)
 
         jersey_crop = image[top:bottom, left:right]
 
         mean_color = np.mean(jersey_crop, axis=(0,1))
 
         return mean_color
+
+
 # Assign right color for the one team
     def assign_team_color(self, frame, player_detections):
 

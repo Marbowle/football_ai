@@ -15,6 +15,7 @@ class GameAnalyzer:
         self.tracker = Tracker()
         self.team_assigner = TeamAssigner()
         self.player_ball_assigner = PlayerBallAssigner()
+        self.player_team_assignments  = {}
 
         self.ellipse_annotator = sv.EllipseAnnotator(
             color = sv.Color.RED,
@@ -74,7 +75,6 @@ class GameAnalyzer:
         fps = cap.get(cv2.CAP_PROP_FPS)
         video_writer = cv2.VideoWriter(output_video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
-        bounding_box_annotator = sv.BoxAnnotator()
         label_annotator = sv.LabelAnnotator()
 
         for i in range(frame_count):
@@ -84,9 +84,13 @@ class GameAnalyzer:
                 detections = sv.Detections.from_ultralytics(results)
                 detections = self.tracker.update_with_detections(detections)
 
+                # Methods to assign right color in first frame
+                if i == 0:
+                    players_only = detections[detections.class_id == 2]
+                    self.team_assigner.assign_team_color(frame, players_only)
+
                 #Calculate ball control
                 ball_bbox = ball_detections[i]
-
 
                 #List of players
                 players_bboxes_dict = {}
@@ -97,12 +101,6 @@ class GameAnalyzer:
                 assigned_player_id = -1
                 if ball_bbox is not None:
                     assigned_player_id = self.player_ball_assigner.assign_ball_to_player(players_bboxes_dict, ball_bbox)
-
-
-                # Methods to assign right color in first frame
-                if i == 0:
-                    players_only = detections[detections.class_id == 2]
-                    self.team_assigner.assign_team_color(frame, players_only)
 
                 # Create labels for correct assign team
                 labels = []
@@ -116,7 +114,12 @@ class GameAnalyzer:
                     elif class_id == 3:
                         labels.append("REF")
                     else:
-                        team_id = self.team_assigner.get_player_team(frame, bbox, tracker_id)
+                        if tracker_id in self.player_team_assignments:
+                            team_id = self.player_team_assignments[tracker_id]
+                        else:
+                            team_id = self.team_assigner.get_player_team(frame, bbox, tracker_id)
+                            self.player_team_assignments[tracker_id] = team_id
+
                         labels.append(f"ID: {tracker_id} T: {team_id}")
                         team_color = self.team_assigner.team_colors[team_id]
                         self.ellipse_annotator.color = sv.Color(
@@ -135,22 +138,20 @@ class GameAnalyzer:
                             detections=single_player_detection
                         )
                         if tracker_id == assigned_player_id:
-                            if tracker_id == assigned_player_id:
-                                team_color = self.team_assigner.team_colors[team_id]
-                                self.triangle_annotator.color = sv.Color(
-                                    r=int(team_color[0]),
-                                    g=int(team_color[1]),
-                                    b=int(team_color[2])
-                                )
+                            team_color = self.team_assigner.team_colors[team_id]
+                            self.triangle_annotator.color = sv.Color(
+                                r=int(team_color[0]),
+                                g=int(team_color[1]),
+                                b=int(team_color[2])
+                            )
 
 
                 class_id = np.array([0])
                 ball_detections_for_drawing = sv.Detections(xyxy=np.array([ball_bbox]), class_id=class_id)
+                self.triangle_annotator.color = sv.Color.YELLOW
 
                 # 2. Drawing frames and labels
-
-
-                annotated_frame = label_annotator.annotate(
+                annotated_frame = self.label_annotator.annotate(
                     scene=annotated_frame,
                     detections=detections[detections.class_id != 0],
                     labels=labels
