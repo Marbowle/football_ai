@@ -9,6 +9,7 @@ from src.soccer_analysis.team_assigner import TeamAssigner
 from src.soccer_analysis.player_ball_assigner import PlayerBallAssigner
 from src.soccer_analysis.utils.visualizer import Visualizer
 from src.soccer_analysis.utils.pickle_utils import save_detections, load_detections
+from src.soccer_analysis.camera_movement_estimator import CameraMovementEstimator
 
 class GameAnalyzer:
     def __init__(self, source_video_path, model_path):
@@ -21,6 +22,7 @@ class GameAnalyzer:
         self.player_team_assignments = {}
         self.player_colors_frame1 = {}
         self.visualizer = Visualizer()
+        self.camera_movement_estimator = CameraMovementEstimator()
 
     def extract_ball_positions(self, read_from_stub=False, stub_path=None):
         if read_from_stub and stub_path is not None and os.path.exists(stub_path):
@@ -89,21 +91,33 @@ class GameAnalyzer:
     def process_video(self, output_video_path):
         video_path = self.source_video_path
 
-
         ball_detections = self.extract_ball_positions(read_from_stub=True, stub_path='stub_ball_detections.pkl')
         detections_tracks = self.get_annotations(read_from_stub=True, stub_path='stub_player_detections.pkl')
 
+
         cap = cv2.VideoCapture(video_path)
-        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = cap.get(cv2.CAP_PROP_FPS)
+        frames = []
+        while True:
+            ret, frame = cap.read()
+            if not ret: break
+            frames.append(frame)
+        cap.release()
+
+        camera_movement = self.camera_movement_estimator.get_camera_movement(
+            frames,
+            detections_tracks,  # To nasza lista 'annotations'
+            read_from_stub=True,
+            stub_path='stub_camera_movement.pkl'
+        )
+
+        height, width = frames[0].shape[:2]
+        fps = 24
         video_writer = cv2.VideoWriter(output_video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
+        frame_count = len(frames)
+
         for i in range(frame_count):
-            ret, frame = cap.read()
-            if not ret:
-                break
+            frame = frames[i]
 
 
             if i < len(detections_tracks):
