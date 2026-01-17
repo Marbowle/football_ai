@@ -6,6 +6,7 @@ from src.soccer_analysis.inference import Detector
 from src.soccer_analysis.trackers import Tracker
 from src.soccer_analysis.team_assigner import TeamAssigner
 from src.soccer_analysis.player_ball_assigner import PlayerBallAssigner
+from src.soccer_analysis.utils.visualizer import Visualizer
 
 class GameAnalyzer:
     def __init__(self, source_video_path, model_path):
@@ -16,25 +17,8 @@ class GameAnalyzer:
         self.team_assigner = TeamAssigner()
         self.player_ball_assigner = PlayerBallAssigner()
         self.player_team_assignments = {}
-
-
         self.player_colors_frame1 = {}
-
-        self.ellipse_annotator = sv.EllipseAnnotator(
-            color=sv.Color.RED,
-            thickness=2
-        )
-
-        self.triangle_annotator = sv.TriangleAnnotator(
-            color=sv.Color.YELLOW,
-            base=20,
-            height=20
-        )
-
-        self.label_annotator = sv.LabelAnnotator(
-            text_color=sv.Color.BLACK,
-            text_position=sv.Position.BOTTOM_CENTER
-        )
+        self.visualizer = Visualizer()
 
     def extract_ball_positions(self):
         cap = cv2.VideoCapture(self.source_video_path)
@@ -109,76 +93,31 @@ class GameAnalyzer:
                 if ball_bbox is not None:
                     assigned_player_id = self.player_ball_assigner.assign_ball_to_player(players_bboxes_dict, ball_bbox)
 
-                # Create labels
-                labels = []
+                for bbox, _, _, class_id, tracker_id, _ in detections:
+                    if class_id == 2 and tracker_id not in self.player_team_assignments:
+                        player_color = self.team_assigner.get_player_color(frame, bbox)
+                        team_id = self.team_assigner.kmeans.predict([player_color])[0]
+                        self.player_team_assignments[tracker_id] = team_id
+
                 annotated_frame = frame.copy()
 
-                for bbox, _, _, class_id, tracker_id, _ in detections:
-                    if class_id == 0:
-                        continue
-                    elif class_id == 1:
-                        labels.append("GK")
-                    elif class_id == 3:
-                        labels.append("REF")
-                    else:  # class_id == 2 (player)
-                        if tracker_id in self.player_team_assignments:
-                            team_id = self.player_team_assignments[tracker_id]
-                        else:
-                            player_color = self.team_assigner.get_player_color(frame, bbox)
-                            team_id = self.team_assigner.kmeans.predict([player_color])[0]
-                            self.player_team_assignments[tracker_id] = team_id
-                            print(f"Frame {i}: New player {tracker_id} -> Team {team_id}")
-
-                        labels.append(f"ID: {tracker_id} T: {team_id}")
-                        team_color = self.team_assigner.team_colors[team_id]
-
-                        # BGR -> RGB conversion for sv.Color
-                        self.ellipse_annotator.color = sv.Color(
-                            r=int(team_color[2]),
-                            g=int(team_color[1]),
-                            b=int(team_color[0])
-                        )
-
-                        single_player_detection = sv.Detections(
-                            xyxy=np.array([bbox]),
-                            class_id=np.array([class_id]),
-                            tracker_id=np.array([tracker_id])
-                        )
-
-                        annotated_frame = self.ellipse_annotator.annotate(
-                            scene=annotated_frame,
-                            detections=single_player_detection
-                        )
-
-                        if tracker_id == assigned_player_id:
-                            self.triangle_annotator.color = sv.Color(
-                                r=int(team_color[2]),
-                                g=int(team_color[1]),
-                                b=int(team_color[0])
-                            )
-                            annotated_frame = self.triangle_annotator.annotate(
-                                scene=annotated_frame,
-                                detections=single_player_detection
-                            )
-
-                class_id = np.array([0])
-                ball_detections_for_drawing = sv.Detections(xyxy=np.array([ball_bbox]), class_id=class_id)
-                self.triangle_annotator.color = sv.Color.YELLOW
-
-                # Drawing frames and labels
-                annotated_frame = self.label_annotator.annotate(
-                    scene=annotated_frame,
-                    detections=detections[detections.class_id != 0],
-                    labels=labels
+                annotated_frame = self.visualizer.draw_scene(
+                    annotated_frame,
+                    detections,
+                    self.player_team_assignments,
+                    self.team_assigner,
+                    assigned_player_id,
+                    ball_bbox
                 )
-                annotated_frame = self.triangle_annotator.annotate(
-                    scene=annotated_frame,
-                    detections=ball_detections_for_drawing
+
+                annotated_frame = self.visualizer.draw_labels(
+                    annotated_frame,
+                    detections,
+                    self.player_team_assignments
                 )
 
                 video_writer.write(annotated_frame)
-            else:
-                break
+
 
         cap.release()
         video_writer.release()

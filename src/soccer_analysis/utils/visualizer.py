@@ -19,42 +19,36 @@ class Visualizer:
         )
 
     def draw_scene(self, frame, detections, player_team_assignments, team_assigner, assigned_player_id, ball_bbox):
-        # 1. Rysowanie graczy (Elipsy i Trójkąty posiadania)
         for bbox, _, _, class_id, tracker_id, _ in detections:
-            if class_id != 2: continue  # Tylko gracze
+            if class_id != 2: continue
 
-            # Pobierz kolor drużyny
             team_id = player_team_assignments.get(tracker_id)
-            if team_id is None: continue  # Zabezpieczenie
+            if team_id is None: continue
 
             team_color = team_assigner.team_colors[team_id]
-            # Konwersja koloru dla Supervision (BGR -> RGB)
             sv_color = sv.Color(r=int(team_color[2]), g=int(team_color[1]), b=int(team_color[0]))
 
-            # Ustaw kolory annotatorów
             self.ellipse_annotator.color = sv_color
 
-            # Stwórz pojedynczą detekcję do narysowania
             single_detection = sv.Detections(
                 xyxy=np.array([bbox]),
                 class_id=np.array([class_id]),
                 tracker_id=np.array([tracker_id])
             )
 
-            # Rysuj elipsę
+
             frame = self.ellipse_annotator.annotate(scene=frame, detections=single_detection)
 
-            # Jeśli ma piłkę -> rysuj trójkąt w kolorze drużyny
+
             if tracker_id == assigned_player_id:
                 self.triangle_annotator.color = sv_color
                 frame = self.triangle_annotator.annotate(scene=frame, detections=single_detection)
 
-        # 2. Rysowanie Piłki (Żółty trójkąt, jeśli wolna)
+
         if ball_bbox is not None:
             if assigned_player_id == -1:
                 self.triangle_annotator.color = sv.Color.YELLOW
-            # Jeśli ktoś ma piłkę, kolor trójkąta został ustawiony wyżej, więc tu go nie resetujemy,
-            # chyba że chcesz wymusić żółty zawsze nad piłką - wtedy odkomentuj linię wyżej.
+
 
             ball_detection = sv.Detections(xyxy=np.array([ball_bbox]), class_id=np.array([0]))
             frame = self.triangle_annotator.annotate(scene=frame, detections=ball_detection)
