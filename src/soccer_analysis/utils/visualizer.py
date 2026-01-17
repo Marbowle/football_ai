@@ -56,8 +56,10 @@ class Visualizer:
         return frame
 
     def draw_labels(self, frame, detections, player_team_assignments):
+        people_detections = detections[detections.class_id != 0]
+
         labels = []
-        for _, _, _, class_id, tracker_id, _ in detections:
+        for _, _, _, class_id, tracker_id, _ in people_detections:
             if class_id == 1:
                 labels.append("GK")
             elif class_id == 3:
@@ -65,12 +67,9 @@ class Visualizer:
             elif class_id == 2:
                 team_id = player_team_assignments.get(tracker_id, "?")
                 labels.append(f"ID: {tracker_id} T: {team_id}")
-            else:
-                labels.append("")  # Ball
-
 
         return self.label_annotator.annotate(
             scene=frame,
-            detections=detections[detections.class_id != 0],
+            detections=people_detections,
             labels=labels
         )
