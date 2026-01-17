@@ -15,17 +15,20 @@ class GameAnalyzer:
         self.tracker = Tracker()
         self.team_assigner = TeamAssigner()
         self.player_ball_assigner = PlayerBallAssigner()
-        self.player_team_assignments  = {}
+        self.player_team_assignments = {}
+
+
+        self.player_colors_frame1 = {}
 
         self.ellipse_annotator = sv.EllipseAnnotator(
-            color = sv.Color.RED,
+            color=sv.Color.RED,
             thickness=2
         )
 
         self.triangle_annotator = sv.TriangleAnnotator(
             color=sv.Color.YELLOW,
-            base= 20,
-            height = 20
+            base=20,
+            height=20
         )
 
         self.label_annotator = sv.LabelAnnotator(
@@ -54,7 +57,7 @@ class GameAnalyzer:
 
         ball_detections = [x if x is not None else [np.nan, np.nan, np.nan, np.nan] for x in ball_detections]
         # Ball interpolation
-        df = pd.DataFrame(ball_detections, columns=['x1', 'x2', 'y1', 'y2'])
+        df = pd.DataFrame(ball_detections, columns=['x1', 'y1', 'x2', 'y2'])
         # Interpolation
         df = df.interpolate()
         # Fill missing values
@@ -63,7 +66,6 @@ class GameAnalyzer:
         ball_detections = df.values.tolist()
 
         return ball_detections
-
 
     def process_video(self, output_video_path):
         video_path = self.source_video_path
@@ -84,15 +86,20 @@ class GameAnalyzer:
                 detections = sv.Detections.from_ultralytics(results)
                 detections = self.tracker.update_with_detections(detections)
 
-                # Methods to assign right color in first frame
                 if i == 0:
                     players_only = detections[detections.class_id == 2]
                     self.team_assigner.assign_team_color(frame, players_only)
 
-                #Calculate ball control
+                    for bbox, _, _, class_id, tracker_id, _ in players_only:
+                        player_color = self.team_assigner.get_player_color(frame, bbox)
+                        team_id = self.team_assigner.kmeans.predict([player_color])[0]
+                        self.player_team_assignments[tracker_id] = team_id
+                        self.player_colors_frame1[tracker_id] = player_color
+
+                # Calculate ball control
                 ball_bbox = ball_detections[i]
 
-                #List of players
+                # List of players
                 players_bboxes_dict = {}
                 for bbox, _, _, class_id, tracker_id, _ in detections:
                     if class_id == 2:
@@ -102,7 +109,7 @@ class GameAnalyzer:
                 if ball_bbox is not None:
                     assigned_player_id = self.player_ball_assigner.assign_ball_to_player(players_bboxes_dict, ball_bbox)
 
-                # Create labels for correct assign team
+                # Create labels
                 labels = []
                 annotated_frame = frame.copy()
 
@@ -113,20 +120,25 @@ class GameAnalyzer:
                         labels.append("GK")
                     elif class_id == 3:
                         labels.append("REF")
-                    else:
+                    else:  # class_id == 2 (player)
                         if tracker_id in self.player_team_assignments:
                             team_id = self.player_team_assignments[tracker_id]
                         else:
-                            team_id = self.team_assigner.get_player_team(frame, bbox, tracker_id)
+                            player_color = self.team_assigner.get_player_color(frame, bbox)
+                            team_id = self.team_assigner.kmeans.predict([player_color])[0]
                             self.player_team_assignments[tracker_id] = team_id
+                            print(f"Frame {i}: New player {tracker_id} -> Team {team_id}")
 
                         labels.append(f"ID: {tracker_id} T: {team_id}")
                         team_color = self.team_assigner.team_colors[team_id]
+
+                        # BGR -> RGB conversion for sv.Color
                         self.ellipse_annotator.color = sv.Color(
-                            r=int(team_color[0]),
+                            r=int(team_color[2]),
                             g=int(team_color[1]),
-                            b=int(team_color[2])
+                            b=int(team_color[0])
                         )
+
                         single_player_detection = sv.Detections(
                             xyxy=np.array([bbox]),
                             class_id=np.array([class_id]),
@@ -137,20 +149,23 @@ class GameAnalyzer:
                             scene=annotated_frame,
                             detections=single_player_detection
                         )
-                        if tracker_id == assigned_player_id:
-                            team_color = self.team_assigner.team_colors[team_id]
-                            self.triangle_annotator.color = sv.Color(
-                                r=int(team_color[0]),
-                                g=int(team_color[1]),
-                                b=int(team_color[2])
-                            )
 
+                        if tracker_id == assigned_player_id:
+                            self.triangle_annotator.color = sv.Color(
+                                r=int(team_color[2]),
+                                g=int(team_color[1]),
+                                b=int(team_color[0])
+                            )
+                            annotated_frame = self.triangle_annotator.annotate(
+                                scene=annotated_frame,
+                                detections=single_player_detection
+                            )
 
                 class_id = np.array([0])
                 ball_detections_for_drawing = sv.Detections(xyxy=np.array([ball_bbox]), class_id=class_id)
                 self.triangle_annotator.color = sv.Color.YELLOW
 
-                # 2. Drawing frames and labels
+                # Drawing frames and labels
                 annotated_frame = self.label_annotator.annotate(
                     scene=annotated_frame,
                     detections=detections[detections.class_id != 0],
@@ -167,7 +182,3 @@ class GameAnalyzer:
 
         cap.release()
         video_writer.release()
-
-
-
-
