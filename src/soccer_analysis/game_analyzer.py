@@ -10,6 +10,7 @@ from src.soccer_analysis.player_ball_assigner import PlayerBallAssigner
 from src.soccer_analysis.utils.visualizer import Visualizer
 from src.soccer_analysis.utils.pickle_utils import save_detections, load_detections
 from src.soccer_analysis.camera_movement_estimator import CameraMovementEstimator
+from src.soccer_analysis.view_transformer import ViewTransformer
 
 class GameAnalyzer:
     def __init__(self, source_video_path, model_path):
@@ -23,6 +24,7 @@ class GameAnalyzer:
         self.player_colors_frame1 = {}
         self.visualizer = Visualizer()
         self.camera_movement_estimator = CameraMovementEstimator()
+        self.view_transformer = ViewTransformer()
 
     def extract_ball_positions(self, read_from_stub=False, stub_path=None):
         if read_from_stub and stub_path is not None and os.path.exists(stub_path):
@@ -105,10 +107,14 @@ class GameAnalyzer:
 
         camera_movement = self.camera_movement_estimator.get_camera_movement(
             frames,
-            detections_tracks,  # To nasza lista 'annotations'
+            detections_tracks,
             read_from_stub=True,
             stub_path='stub_camera_movement.pkl'
         )
+
+        self.camera_movement_estimator.add_adjust_positions_to_tracks(detections_tracks, camera_movement)
+
+        self.view_transformer.add_transformed_position_to_tracks(detections_tracks)
 
         height, width = frames[0].shape[:2]
         fps = 24
