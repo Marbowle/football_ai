@@ -11,6 +11,7 @@ from src.soccer_analysis.utils.visualizer import Visualizer
 from src.soccer_analysis.utils.pickle_utils import save_detections, load_detections
 from src.soccer_analysis.camera_movement_estimator import CameraMovementEstimator
 from src.soccer_analysis.view_transformer import ViewTransformer
+from src.soccer_analysis.utils.io_utils import save_tracks_to_csv
 
 class GameAnalyzer:
     def __init__(self, source_video_path, model_path):
@@ -90,12 +91,83 @@ class GameAnalyzer:
 
         return tracks
 
+    def convert_detections_to_tracks(self, detections_list):
+        tracks = {
+            "players": [],
+            "referees": [],
+            "ball": []
+        }
+
+        for _ in range(len(detections_list)):
+            tracks["players"].append({})
+            tracks["referees"].append({})
+            tracks["ball"].append({})
+
+        for frame_num, detection_frame in enumerate(detections_list):
+            for i in range(len(detection_frame)):
+                bbox = detection_frame.xyxy[i]
+                class_id = detection_frame.class_id[i]
+                track_id = detection_frame.tracker_id[i] if detection_frame.tracker_id is not None else -1
+
+                object_type = None
+                if class_id == 2:  # Player
+                    object_type = "players"
+                elif class_id == 1:  # Goalkeeper
+                    object_type = "players"
+                elif class_id == 3:  # Referee
+                    object_type = "referees"
+                elif class_id == 0:  # Ball
+                    object_type = "ball"
+                    track_id = 1
+
+                if object_type:
+                    x1, y1, x2, y2 = bbox
+                    if object_type == "ball":
+                        position = ((x1 + x2) / 2, (y1 + y2) / 2)
+                    else:
+                        position = ((x1 + x2) / 2, y2)
+
+                    tracks[object_type][frame_num][track_id] = {
+                        "bbox": bbox,
+                        "position": position,
+                        "team_id": None
+                    }
+
+        return tracks
+
+    def assign_teams(self, frames, raw_detections, tracks):
+
+        print("Przydzielanie druzyn")
+        for frame_num, frame in enumerate(frames):
+            if frame_num >= len(raw_detections): continue
+
+            detections = raw_detections[frame_num]
+
+            players_only = detections[detections.class_id == 2]
+
+            if frame_num == 0:
+                self.team_assigner.assign_team_color(frame, players_only)
+
+
+            for i in range(len(players_only)):
+                bbox = players_only.xyxy[i]
+                tracker_id = players_only.tracker_id[i]
+
+                team_id = self.team_assigner.get_player_team(frame, bbox, tracker_id)
+
+
+                self.player_team_assignments[tracker_id] = team_id
+
+
+                if tracker_id in tracks["players"][frame_num]:
+                    tracks["players"][frame_num][tracker_id]["team_id"] = team_id
+
     def process_video(self, output_video_path):
         video_path = self.source_video_path
 
-        ball_detections = self.extract_ball_positions(read_from_stub=True, stub_path='stub_ball_detections.pkl')
-        detections_tracks = self.get_annotations(read_from_stub=True, stub_path='stub_player_detections.pkl')
 
+        raw_detections = self.get_annotations(read_from_stub=True, stub_path='stub_player_detections.pkl')
+        ball_detections = self.extract_ball_positions(read_from_stub=True, stub_path='stub_ball_detections.pkl')
 
         cap = cv2.VideoCapture(video_path)
         frames = []
@@ -105,58 +177,39 @@ class GameAnalyzer:
             frames.append(frame)
         cap.release()
 
+        detections_tracks = self.convert_detections_to_tracks(raw_detections)
+
+
         camera_movement = self.camera_movement_estimator.get_camera_movement(
-            frames,
-            detections_tracks,
-            read_from_stub=True,
-            stub_path='stub_camera_movement.pkl'
+            frames, raw_detections, read_from_stub=True, stub_path='stub_camera_movement.pkl'
         )
 
-        self.camera_movement_estimator.add_adjust_positions_to_tracks(detections_tracks, camera_movement)
 
+        self.camera_movement_estimator.add_adjust_positions_to_tracks(detections_tracks, camera_movement)
         self.view_transformer.add_transformed_position_to_tracks(detections_tracks)
+
+        self.assign_teams(frames, raw_detections, detections_tracks)
+
+        save_tracks_to_csv(detections_tracks, 'output_game_data.csv')
+
 
         height, width = frames[0].shape[:2]
         fps = 24
         video_writer = cv2.VideoWriter(output_video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
-        frame_count = len(frames)
-
-        for i in range(frame_count):
-            frame = frames[i]
-
-
-            if i < len(detections_tracks):
-                detections = detections_tracks[i]
+        for i, frame in enumerate(frames):
+            if i < len(raw_detections):
+                detections = raw_detections[i]
             else:
                 detections = sv.Detections.empty()
 
-
-            if i == 0:
-                players_only = detections[detections.class_id == 2]
-                self.team_assigner.assign_team_color(frame, players_only)
-
-
-                for bbox, _, _, class_id, tracker_id, _ in players_only:
-                    player_color = self.team_assigner.get_player_color(frame, bbox)
-                    team_id = self.team_assigner.kmeans.predict([player_color])[0]
-                    self.player_team_assignments[tracker_id] = team_id
-
-            for bbox, _, _, class_id, tracker_id, _ in detections:
-                if class_id == 2 and tracker_id not in self.player_team_assignments:
-                    player_color = self.team_assigner.get_player_color(frame, bbox)
-                    team_id = self.team_assigner.kmeans.predict([player_color])[0]
-                    self.player_team_assignments[tracker_id] = team_id
-
             ball_bbox = ball_detections[i]
             assigned_player_id = -1
-
             if ball_bbox is not None:
                 players_bboxes_dict = {}
                 for bbox, _, _, class_id, tracker_id, _ in detections:
                     if class_id == 2:
                         players_bboxes_dict[tracker_id] = bbox
-
                 assigned_player_id = self.player_ball_assigner.assign_ball_to_player(players_bboxes_dict, ball_bbox)
 
             annotated_frame = frame.copy()
@@ -178,8 +231,8 @@ class GameAnalyzer:
 
             video_writer.write(annotated_frame)
 
-            if i % 100 == 0:
-                print(f"Przetwarzanie klatki {i}/{frame_count}")
+            if i % 50 == 0:
+                print(f"Generowanie wideo: klatka {i}/{len(frames)}")
 
-        cap.release()
         video_writer.release()
+        print("Gotowe! Wideo i CSV zapisane.")
