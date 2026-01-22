@@ -7,3 +7,6 @@ scikit-learn
 roboflow
 pandas
 streamlit
+plotly
+mplsoccer
+
