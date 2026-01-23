@@ -9,4 +9,5 @@ pandas
 streamlit
 plotly
 mplsoccer
-
+seaborn
+matplotlib
