@@ -5,9 +5,8 @@ numpy
 scikit-learn
 roboflow
 pandas
-streamlit
+streamlit>=1.31.0
 plotly
 mplsoccer
 seaborn
 matplotlib
-altair<5
