@@ -10,3 +10,4 @@ plotly
 mplsoccer
 seaborn
 matplotlib
+altair<5
