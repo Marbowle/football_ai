@@ -1,6 +1,5 @@
-opencv_python
+opencv-python-headless
 ultralytics
-argparse
 supervision
 numpy
 scikit-learn
