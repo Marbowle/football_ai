@@ -1,0 +1,59 @@
+site_name: Football AI Engine Docs
+site_url: https://marbowle.github.io/football-ai/
+repo_url: https://github.com/marbowle/football_ai
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+
+extra_javascript:
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+  - https://unpkg.com/mermaid/dist/mermaid.min.js
+markdown_extensions:
+  - attr_list
+  # Konfiguracja diagramów Mermaid
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  # Konfiguracja matematyki (LaTeX)
+  - pymdownx.arithmatex:
+      generic: true
+  # Konfiguracja kart (Tabs)
+  - pymdownx.tabbed:
+      alternate_style: true
+  # Kolorowe ramki (Admonitions)
+  - admonition
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+
+plugins:
+  - search
+  - mkdocstrings
+
+nav:
+  - Wstęp: index.md
+  - Architektura Systemu: architecture.md
+  - Moduły AI:
+    - Detekcja i Tracking: modules/tracking.md
+    - Ruch Kamery: modules/camera.md
+    - Transformacja Perspektywy: modules/view_transformer.md
+    - Przypisanie Drużyn: modules/teams.md
+  - Przetwarzanie Danych: data_engineering.md
+  - Dashboard: dashboard.md

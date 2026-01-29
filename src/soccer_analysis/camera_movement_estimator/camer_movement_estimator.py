@@ -88,7 +88,7 @@ class CameraMovementEstimator:
             old_gray = frame_gray.copy()
 
 
-        # 6. Zapisujemy wynik
+        #Saving results
         if stub_path is not None:
             with open(stub_path, 'wb') as f:
                 pickle.dump(camera_movement, f)
