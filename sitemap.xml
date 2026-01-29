@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://marbowle.github.io/football-ai/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://marbowle.github.io/football-ai/architecture/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://marbowle.github.io/football-ai/dashboard/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://marbowle.github.io/football-ai/data_engineering/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://marbowle.github.io/football-ai/modules/camera/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://marbowle.github.io/football-ai/modules/teams/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://marbowle.github.io/football-ai/modules/tracking/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://marbowle.github.io/football-ai/modules/view_transformer/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+</urlset>
