@@ -26,6 +26,12 @@ class ViewTransformer():
         self.perspective_transformer = cv2.getPerspectiveTransform(self.pixel_vertices, self.target_vertices)
 
     def transform_point(self, point):
+        """
+        Converts a point from pixel coordinates to real-world metric coordinates (meters).
+        It validates if the point is within the defined pitch boundaries before applying the perspective transform.
+
+        Returns: The transformed [x, y] coordinates in meters, or None if the point is outside the valid area.
+        """
         point = np.array(point)
         p = (int(point[0]), int(point[1]))
         is_inside = cv2.pointPolygonTest(self.pixel_vertices, p, False) >=0
@@ -38,6 +44,12 @@ class ViewTransformer():
 
 
     def add_transformed_position_to_tracks(self, tracks):
+        """
+        Applies perspective transformation to all tracked object positions to convert them into metric coordinates.
+
+        This method works IN-PLACE: it directly updates the provided 'tracks' dictionary
+        by adding the 'position_transformed' key, so it does not return any value.
+        """
         for object, object_tracks in tracks.items():
             for frame_num, frame in enumerate(object_tracks):
                 for track_id, track_info in frame.items():

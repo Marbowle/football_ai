@@ -21,6 +21,11 @@ class CameraMovementEstimator:
         )
 
     def get_camera_movement(self, frames, annotations, read_from_stub=False, stub_path=None):
+        """
+        Calculates camera movement (x, y) for each frame using Optical Flow.
+        It masks out detected players to track only background features.
+        Returns: A list of [x, y] translation coordinates per frame.
+        """
         if read_from_stub and stub_path is not None and os.path.exists(stub_path):
             with open(stub_path, 'rb') as f:
                 return pickle.load(f)
@@ -96,6 +101,12 @@ class CameraMovementEstimator:
         return camera_movement
 
     def add_adjust_positions_to_tracks(self, tracks, camera_movement_per_frame):
+        """
+        Adjusts object positions by compensating for camera movement.
+        It subtracts the camera's x/y translation from raw coordinates to stabilize positions.
+
+        Updates the 'tracks' dictionary in-place by adding 'position_adjusted'.
+        """
         for object, object_tracks in tracks.items():
             for frame_num, track in enumerate(object_tracks):
                 for track_id, track_info in track.items():

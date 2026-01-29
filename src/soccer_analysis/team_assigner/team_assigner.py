@@ -9,6 +9,12 @@ class TeamAssigner(object):
 
 # Cut the middle to get right color
     def get_player_color(self, frame, bbox):
+        """
+        Extracts the dominant color from a specific region (bbox) of the frame using K-Means.
+        It first crops the player image based on the bounding box, then performs clustering.
+
+        Returns: The cluster centers (RGB values) representing the dominant colors.
+        """
 
         image = frame[int(bbox[1]):int(bbox[3]), int(bbox[0]):int(bbox[2])]
 
@@ -29,6 +35,12 @@ class TeamAssigner(object):
 
 # Assign right color for the one team
     def assign_team_color(self, frame, player_detections):
+        """
+        Determines the two primary team colors by clustering all detected players' colors.
+        It uses K-Means to find the two dominant jersey colors across the provided frame.
+
+        Updates the 'team_colors' attribute with the two resulting cluster centers.
+        """
 
         player_colors = []
 
@@ -42,8 +54,16 @@ class TeamAssigner(object):
 
         self.team_colors[0] = self.kmeans.cluster_centers_[0]
         self.team_colors[1] = self.kmeans.cluster_centers_[1]
+
 #Assign player for the correct team
     def get_player_team(self, frame, player_bbox, player_id):
+        """
+        Predicts the team assignment for a specific player based on their jersey color.
+        It uses the pre-trained K-Means model to classify the player's extracted color.
+
+        Returns: The predicted team ID (e.g., 0 or 1).
+        """
+
         if self.kmeans is None:
             return 0
 

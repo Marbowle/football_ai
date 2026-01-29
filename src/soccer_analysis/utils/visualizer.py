@@ -19,6 +19,12 @@ class Visualizer:
         )
 
     def draw_scene(self, frame, detections, player_team_assignments, team_assigner, assigned_player_id, ball_bbox):
+        """
+        Draws visual annotations (ellipses, labels, ball markers) onto the video frame.
+        It visualizes player positions using team colors and highlights the ball and the player in possession.
+
+        Returns: The annotated video frame with all graphics applied.
+        """
         for bbox, _, _, class_id, tracker_id, _ in detections:
             if class_id != 2: continue
 
@@ -56,6 +62,12 @@ class Visualizer:
         return frame
 
     def draw_labels(self, frame, detections, player_team_assignments):
+        """
+        Draws bounding boxes and tracking IDs for detected objects on the frame.
+        It visualizes specific object details (like Player ID) to assist in tracking verification.
+
+        Returns: The frame with added textual labels and bounding boxes.
+        """
         people_detections = detections[detections.class_id != 0]
 
         labels = []

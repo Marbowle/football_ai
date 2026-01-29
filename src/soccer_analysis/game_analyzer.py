@@ -6,7 +6,7 @@ import supervision as sv
 from src.soccer_analysis.inference import Detector
 from src.soccer_analysis.trackers import Tracker
 from src.soccer_analysis.team_assigner import TeamAssigner
-from src.soccer_analysis.player_ball_assigner import PlayerBallAssigner
+from src.soccer_analysis.player_ball_assigner.player_ball_assigner import PlayerBallAssigner
 from src.soccer_analysis.utils.visualizer import Visualizer
 from src.soccer_analysis.utils.pickle_utils import save_detections, load_detections
 from src.soccer_analysis.camera_movement_estimator import CameraMovementEstimator
@@ -28,6 +28,12 @@ class GameAnalyzer:
         self.view_transformer = ViewTransformer()
 
     def extract_ball_positions(self, read_from_stub=False, stub_path=None):
+        """
+        Extracts ball positions and applies interpolation to handle missing detections.
+        It fills gaps in tracking data to ensure a continuous trajectory for the ball.
+
+        Returns: A list of interpolated bounding boxes representing the ball's position.
+        """
         if read_from_stub and stub_path is not None and os.path.exists(stub_path):
             return load_detections(stub_path)
 
@@ -65,6 +71,12 @@ class GameAnalyzer:
         return ball_detections
 
     def get_annotations(self, read_from_stub=False, stub_path=None):
+        """
+        Performs object detection on video frames to locate players, referees, and the ball.
+        It supports loading pre-calculated detections from a file to avoid re-running the model.
+
+        Returns: A list of raw detections (bounding boxes and class IDs) for each frame.
+        """
         if read_from_stub and stub_path is not None and os.path.exists(stub_path):
             print("Wczytywanie detekcji z pliku...")
             return load_detections(stub_path)
@@ -92,6 +104,12 @@ class GameAnalyzer:
         return tracks
 
     def convert_detections_to_tracks(self, detections_list):
+        """
+        Converts raw detection data into consistent tracks by assigning unique IDs.
+        It processes detections through a tracker to maintain object identity across video frames.
+
+        Returns: A dictionary of tracks organized by object class (e.g., players, referees).
+        """
         tracks = {
             "players": [],
             "referees": [],
@@ -136,6 +154,12 @@ class GameAnalyzer:
         return tracks
 
     def assign_teams(self, frames, raw_detections, tracks):
+        """
+        Assigns team IDs to tracked players based on their jersey colors.
+       It analyzes pixel data to classify each player into one of the two teams.
+
+       Updates the 'tracks' dictionary in-place with team assignments and colors.
+       """
 
         print("Przydzielanie druzyn")
         for frame_num, frame in enumerate(frames):
@@ -163,6 +187,10 @@ class GameAnalyzer:
                     tracks["players"][frame_num][tracker_id]["team_id"] = team_id
 
     def process_video(self, output_video_path):
+        """
+        Orchestrates the complete analysis pipeline: detection, tracking, camera movement, and team assignment.
+        It integrates all processed data to render visual annotations and saves the final output video.
+        """
         video_path = self.source_video_path
 
 
